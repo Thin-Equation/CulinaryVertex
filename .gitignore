@@ -1,0 +1,5 @@
+/CulinaryVertexBackend/.env
+/CulinaryVertexBackend/.venv
+/CulinaryVertexFrontend/.env
+/CulinaryVertexFrontend/node_modules
+/CulinaryVertexFrontend/.next
