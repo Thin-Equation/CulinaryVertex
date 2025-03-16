@@ -3,3 +3,14 @@
 /CulinaryVertexFrontend/.env
 /CulinaryVertexFrontend/node_modules
 /CulinaryVertexFrontend/.next
+/main.ipynb
+/.vscode
+/.idx
+/.venv
+/Finetuning.ipynb
+/orders_train.txt
+/paste.txt
+/reservation_pairs.csv
+/restaurant_orders.csv
+/recommendations_train.txt
+/recommendations.csv
