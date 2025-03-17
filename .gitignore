@@ -1,5 +1,6 @@
 /CulinaryVertexBackend/.env
 /CulinaryVertexBackend/.venv
+/CulinaryVertexBackend/__pycache__
 /CulinaryVertexFrontend/.env
 /CulinaryVertexFrontend/node_modules
 /CulinaryVertexFrontend/.next
