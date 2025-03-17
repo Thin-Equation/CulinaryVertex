@@ -1,23 +1,14 @@
 from __future__ import annotations
 import logging
 from dotenv import load_dotenv
-from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, WorkerType, cli, multimodal
+from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, WorkerType, cli, multimodal, llm
 from livekit.plugins import google
 import datetime
-from livekit.agents import llm
-import certifi
-from typing import List, Dict, Optional, Annotated
-
 import certifi
 import enum
 from pymongo import MongoClient
-from datetime import datetime
 from typing import List, Dict, Optional, Annotated, Any, Union, get_type_hints
-
-from livekit.agents import llm
 from livekit.agents.llm import TypeInfo
-
-uri = "mongodb+srv://admin:dnaC0bYKv7Jc39pm@culinary-vertex.zpa41.mongodb.net/?retryWrites=true&w=majority&appName=Culinary-Vertex"
 
 load_dotenv(dotenv_path=".env")
 logger = logging.getLogger("my-worker")
@@ -27,7 +18,7 @@ class MongoDBHelper:
     def __init__(self, connection_uri: str):
         self.client = MongoClient(
             connection_uri,
-            tlsCAFile=certifi.where()  # Fix for SSL handshake errors
+            tlsCAFile=certifi.where()
         )
         self.db = self.client["restaurant_db"]
         self.menu_collection = self.db["menu"]
@@ -42,7 +33,7 @@ async def entrypoint(ctx: JobContext):
     logger.info("starting culinary vertex backend")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
     
-    uri = "mongodb+srv://admin:dnaC0bYKv7Jc39pm@culinary-vertex.zpa41.mongodb.net/?retryWrites=true&w=majority&appName=Culinary-Vertex"
+    uri = os.getenv("MONGO_DB_URL")
 
     db_helper = MongoDBHelper(uri)
     
