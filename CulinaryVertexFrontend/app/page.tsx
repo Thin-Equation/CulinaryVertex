@@ -16,8 +16,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
 import type { ConnectionDetails } from "./api/connection-details/route";
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 export default function Page() {
+  const { user, error: authError, isLoading: authLoading } = useUser();
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(
     undefined
   );
@@ -42,8 +44,47 @@ export default function Page() {
     updateConnectionDetails(connectionDetailsData);
   }, []);
 
+  if (authLoading) return <div className="h-full grid content-center bg-[var(--lk-bg)]">Loading authentication...</div>;
+  if (authError) return <div className="h-full grid content-center bg-[var(--lk-bg)]">Authentication Error: {authError.message}</div>;
+  
+  if (!user) {
+    return (
+      <div className="h-full grid content-center place-items-center bg-[var(--lk-bg)]">
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="text-xl font-bold">Culinary Vertex</h1>
+          <p>Please log in to use the voice assistant</p>
+          <a 
+            href="/api/auth/login" 
+            className="px-4 py-2 bg-white text-black rounded-md uppercase"
+          >
+            Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main data-lk-theme="default" className="h-full grid content-center bg-[var(--lk-bg)]">
+      <div className="absolute top-4 right-4 flex items-center gap-3">
+        <div className="text-white">
+          {user.picture && (
+            <img 
+              src={user.picture} 
+              alt={user.name || "User"} 
+              className="w-8 h-8 rounded-full inline mr-2" 
+            />
+          )}
+          {user.name}
+        </div>
+        <a 
+          href="/api/auth/logout" 
+          className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded-md"
+        >
+          Logout
+        </a>
+      </div>
+
       <LiveKitRoom
         token={connectionDetails?.participantToken}
         serverUrl={connectionDetails?.serverUrl}

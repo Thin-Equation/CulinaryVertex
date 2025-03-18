@@ -1,5 +1,6 @@
 import "@livekit/components-styles";
 import { Public_Sans } from "next/font/google";
+import { UserProvider } from '@auth0/nextjs-auth0/client';
 import "./globals.css";
 
 const publicSans400 = Public_Sans({
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full ${publicSans400.className}`}>
-      <body className="h-full">{children}</body>
+      <UserProvider>
+        <body className="h-full">{children}</body>
+      </UserProvider>
     </html>
   );
 }
