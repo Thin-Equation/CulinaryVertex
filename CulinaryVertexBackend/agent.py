@@ -3,12 +3,13 @@ import logging
 from dotenv import load_dotenv
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, WorkerType, cli, multimodal, llm
 from livekit.plugins import google
-import datetime
+from datetime import datetime 
 import certifi
 import enum
 from pymongo import MongoClient
 from typing import List, Dict, Optional, Annotated, Any, Union, get_type_hints
 from livekit.agents.llm import TypeInfo
+import os
 
 load_dotenv(dotenv_path=".env")
 logger = logging.getLogger("my-worker")
@@ -46,12 +47,12 @@ async def entrypoint(ctx: JobContext):
         """Retrieve all items from the restaurant menu."""
         return list(db_helper.menu_collection.find({}, {"_id": 0}))
     
-    # @fnc_ctx.ai_callable()
-    # async def get_menu_by_category(
-    #     category: Annotated[str, llm.TypeInfo(description="Category of menu items to retrieve")]
-    # ):
-    #     """Retrieve menu items filtered by category."""
-    #     return list(db_helper.menu_collection.find({"category": category}, {"_id": 0}))
+    @fnc_ctx.ai_callable()
+    async def get_menu_by_category(
+        category: Annotated[str, llm.TypeInfo(description="Category of menu items to retrieve")]
+    ):
+        """Retrieve menu items filtered by category."""
+        return list(db_helper.menu_collection.find({"category": category}, {"_id": 0}))
     
     # @fnc_ctx.ai_callable()
     # async def get_menu_item_by_name(
@@ -154,11 +155,6 @@ async def entrypoint(ctx: JobContext):
     #         return {"success": True, "message": f"Order {order_id} status updated to {status}"}
     #     else:
     #         return {"success": False, "message": "Order not found or status unchanged"}
-
-# async def entrypoint(ctx: JobContext):
-#     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-    
-#     fnc_ctx = RestaurantFnc()
     
     current_date = datetime.now().strftime("%Y-%m-%d")
 
