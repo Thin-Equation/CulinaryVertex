@@ -2,6 +2,9 @@ from pymongo import MongoClient
 from bson import ObjectId
 import os
 import certifi
+from dotenv import load_dotenv
+
+load_dotenv(dotenv_path=".env")
 
 class MongoDBHelper:
     def __init__(self, connection_uri: str):
@@ -453,7 +456,7 @@ menu_items = [
 ]
 
 if __name__ == "__main__":
-    MONGO_URI = "mongodb+srv://admin:zUycd3XTJQcejnRa@culinary-vertex.zpa41.mongodb.net/?retryWrites=true&w=majority&appName=Culinary-Vertex"
+    MONGO_URI = os.getenv("MONGO_DB_URL")
     mongo_helper = MongoDBHelper(MONGO_URI)
     
     inserted_ids = mongo_helper.insert_menu_items(menu_items)
