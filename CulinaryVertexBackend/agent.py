@@ -10,6 +10,7 @@ from pymongo import MongoClient
 from typing import List, Dict, Optional, Annotated, Any, Union, get_type_hints
 from livekit.agents.llm import TypeInfo
 import os
+from bson import ObjectId
 
 load_dotenv(dotenv_path=".env")
 logger = logging.getLogger("my-worker")
@@ -54,12 +55,12 @@ async def entrypoint(ctx: JobContext):
         """Retrieve menu items filtered by category."""
         return list(db_helper.menu_collection.find({"category": category}, {"_id": 0}))
     
-    # @fnc_ctx.ai_callable()
-    # async def get_menu_item_by_name(
-    #     name: Annotated[str, llm.TypeInfo(description="Name of the menu item to find")]
-    # ):
-    #     """Find a specific menu item by its name."""
-    #     return db_helper.menu_collection.find_one({"name": name}, {"_id": 0})
+    @fnc_ctx.ai_callable()
+    async def get_menu_item_by_name(
+        name: Annotated[str, llm.TypeInfo(description="Name of the menu item to find")]
+    ):
+        """Find a specific menu item by its name."""
+        return db_helper.menu_collection.find_one({"name": name}, {"_id": 0})
     
     # Register reservation-related functions
     @fnc_ctx.ai_callable()
@@ -89,17 +90,102 @@ async def entrypoint(ctx: JobContext):
             "message": f"Reservation confirmed for {customer_name} on {date} at {time} for {party_size} people."
         }
     
-    # @fnc_ctx.ai_callable()
-    # async def get_reservations_by_date(
-    #     date: Annotated[str, llm.TypeInfo(description="Date in YYYY-MM-DD format")]
-    # ):
-    #     """Retrieve all reservations for a specific date."""
-    #     reservations = list(db_helper.reservations_collection.find({"date": date}))
-    #     # Convert ObjectId to string for JSON serialization
-    #     for reservation in reservations:
-    #         reservation["_id"] = str(reservation["_id"])
-    #     return reservations
     
+
+    @fnc_ctx.ai_callable()
+    async def modify_reservation(
+        reservation_id: Annotated[str, llm.TypeInfo(description="ID of the reservation to modify")],
+        customer_name: Annotated[Optional[str], llm.TypeInfo(description="Updated full name of the customer")] = None,
+        contact_number: Annotated[Optional[str], llm.TypeInfo(description="Updated customer's phone number")] = None,
+        date: Annotated[Optional[str], llm.TypeInfo(description="Updated date in YYYY-MM-DD format")] = None,
+        time: Annotated[Optional[str], llm.TypeInfo(description="Updated time in HH:MM format")] = None,
+        party_size: Annotated[Optional[int], llm.TypeInfo(description="Updated number of people in the party")] = None
+    ):
+        """Modify an existing restaurant reservation."""
+        # Prepare update dict with only the fields that are provided
+        update_fields = {}
+        if customer_name is not None:
+            update_fields["customer_name"] = customer_name
+        if contact_number is not None:
+            update_fields["contact_number"] = contact_number
+        if date is not None:
+            update_fields["date"] = date
+        if time is not None:
+            update_fields["time"] = time
+        if party_size is not None:
+            update_fields["party_size"] = party_size
+        
+        # Add updated_at timestamp
+        update_fields["updated_at"] = datetime.now()
+        
+        # Update the reservation in the database
+        result = db_helper.reservations_collection.update_one(
+            {"_id": ObjectId(reservation_id)},
+            {"$set": update_fields}
+        )
+        
+        if result.modified_count > 0:
+            # Get the updated reservation to return it
+            updated_reservation = db_helper.reservations_collection.find_one(
+                {"_id": ObjectId(reservation_id)},
+                {"_id": 0}  # Exclude _id field from the result
+            )
+            
+            return {
+                "success": True,
+                "message": f"Reservation updated successfully for {updated_reservation['customer_name']} on {updated_reservation['date']} at {updated_reservation['time']}.",
+                "reservation": updated_reservation
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Reservation not found or no changes were made."
+            }
+    
+    @fnc_ctx.ai_callable()
+    async def get_reservation_by_id(
+        reservation_id: Annotated[str, llm.TypeInfo(description="ID of the reservation to retrieve")]
+    ):
+        """Retrieve a specific reservation by its ID."""
+        reservation = db_helper.reservations_collection.find_one(
+            {"_id": ObjectId(reservation_id)},
+            {"_id": 0}  # Exclude _id field from the result
+        )
+        
+        if reservation:
+            return reservation
+        else:
+            return {"message": "Reservation not found."}
+
+    @fnc_ctx.ai_callable()
+    async def search_reservations(
+        customer_name: Annotated[Optional[str], llm.TypeInfo(description="Customer name to search for")] = None,
+        date: Annotated[Optional[str], llm.TypeInfo(description="Date to search for in YYYY-MM-DD format")] = None,
+        contact_number: Annotated[Optional[str], llm.TypeInfo(description="Contact number to search for")] = None
+    ):
+        """Search for reservations by customer name, date, or contact number."""
+        query = {}
+        if customer_name:
+            query["customer_name"] = {"$regex": customer_name, "$options": "i"}  # Case-insensitive search
+        if date:
+            query["date"] = date
+        if contact_number:
+            query["contact_number"] = contact_number
+        
+        if not query:
+            return {"message": "Please provide at least one search parameter."}
+        
+        reservations = list(db_helper.reservations_collection.find(query, {"_id": 1, "customer_name": 1, "date": 1, "time": 1, "party_size": 1}))
+        
+        # Convert ObjectId to string for JSON serialization
+        for reservation in reservations:
+            reservation["_id"] = str(reservation["_id"])
+        
+        if reservations:
+            return reservations
+        else:
+            return {"message": "No reservations found matching the search criteria."}
+
     # # Register order-related functions
     # @fnc_ctx.ai_callable()
     # async def create_order(
@@ -198,6 +284,7 @@ async def entrypoint(ctx: JobContext):
             temperature=0.8,
             modalities=["AUDIO"]
         ),
+        transcription=multimodal.AgentTranscriptionOptions(user_transcription=True, agent_transcription=True),
         fnc_ctx=fnc_ctx
     )
     agent.start(ctx.room)
