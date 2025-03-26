@@ -186,61 +186,9 @@ async def entrypoint(ctx: JobContext):
         else:
             return {"message": "No reservations found matching the search criteria."}
 
-    # # Register order-related functions
-    # @fnc_ctx.ai_callable()
-    # async def create_order(
-    #     customer_name: Annotated[str, llm.TypeInfo(description="Name of the customer")],
-    #     items: Annotated[List[Dict], llm.TypeInfo(description="List of items with name, price, and quantity")],
-    #     table_number: Annotated[Optional[str], llm.TypeInfo(description="Table number (optional)")] = None
-    # ):
-    #     """Create a new food order."""
-    #     # Calculate total based on items
-    #     total = sum(item.get("price", 0) * item.get("quantity", 1) for item in items)
-        
-    #     order = {
-    #         "customer_name": customer_name,
-    #         "table_number": table_number,
-    #         "items": items,
-    #         "total": total,
-    #         "status": "received",
-    #         "created_at": datetime.now()
-    #     }
-        
-    #     result = db_helper.orders_collection.insert_one(order)
-    #     order_id = str(result.inserted_id)
-        
-    #     return {
-    #         "order_id": order_id,
-    #         "message": f"Order placed successfully for {customer_name}. Total: ${total:.2f}"
-    #     }
+    # Register order-related functions
     
-    # @fnc_ctx.ai_callable()
-    # async def get_active_orders():
-    #     """Retrieve all currently active orders (not completed or cancelled)."""
-    #     orders = list(db_helper.orders_collection.find(
-    #         {"status": {"$nin": ["completed", "cancelled"]}}
-    #     ).sort("created_at", 1))
-        
-    #     # Convert ObjectId to string for JSON serialization
-    #     for order in orders:
-    #         order["_id"] = str(order["_id"])
-    #     return orders
-    
-    # @fnc_ctx.ai_callable()
-    # async def update_order_status(
-    #     order_id: Annotated[str, llm.TypeInfo(description="ID of the order to update")],
-    #     status: Annotated[str, llm.TypeInfo(description="New status (preparing, ready, delivered, completed, cancelled)")]
-    # ):
-    #     """Update the status of an existing order."""
-    #     result = db_helper.orders_collection.update_one(
-    #         {"_id": ObjectId(order_id)},
-    #         {"$set": {"status": status}}
-    #     )
-        
-    #     if result.modified_count > 0:
-    #         return {"success": True, "message": f"Order {order_id} status updated to {status}"}
-    #     else:
-    #         return {"success": False, "message": "Order not found or status unchanged"}
+ 
     
     current_date = datetime.now().strftime("%Y-%m-%d")
 
