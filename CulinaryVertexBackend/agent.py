@@ -192,11 +192,11 @@ async def entrypoint(ctx: JobContext):
         return list(db_helper.policies_collection.find({}, {"_id": 0}))
 
     @fnc_ctx.ai_callable()
-    async def get_policy_by_category(
-        category: Annotated[str, llm.TypeInfo(description="Category of policy to retrieve (e.g., reservation, cancellation, dress-code)")]
+    async def get_policy_by_type(
+        type: Annotated[str, llm.TypeInfo(description="Type of policy to retrieve (e.g., restaurant_info, hours_of_operation, reservation_policy, dress_code)")] 
     ):
-        """Retrieve restaurant policies by category."""
-        return list(db_helper.policies_collection.find({"category": category}, {"_id": 0}))
+        """Retrieve a specific restaurant policy by its type."""
+        return db_helper.policies_collection.find_one({"type": type}, {"_id": 0})
 
     @fnc_ctx.ai_callable()
     async def get_policy_by_id(
@@ -206,11 +206,34 @@ async def entrypoint(ctx: JobContext):
         return db_helper.policies_collection.find_one({"_id": ObjectId(policy_id)}, {"_id": 0})
 
     @fnc_ctx.ai_callable()
-    async def get_policy_by_name(
-        name: Annotated[str, llm.TypeInfo(description="Name of the specific policy to retrieve")]
+    async def get_special_experience_by_name(
+        name: Annotated[str, llm.TypeInfo(description="Name of the special experience to retrieve")]
     ):
-        """Retrieve a specific restaurant policy by its name."""
-        return db_helper.policies_collection.find_one({"name": name}, {"_id": 0})
+        """Retrieve details about a specific special experience by its name."""
+        policy = db_helper.policies_collection.find_one(
+            {"type": "special_experiences"}, 
+            {"_id": 0}
+        )
+        if policy and "options" in policy:
+            for option in policy["options"]:
+                if option.get("name") == name:
+                    return option
+        return {"message": "Special experience not found."}
+
+    @fnc_ctx.ai_callable()
+    async def get_hours_for_day(
+        day: Annotated[str, llm.TypeInfo(description="Day of the week (e.g., Monday, Tuesday)")]
+    ):
+        """Retrieve operating hours for a specific day of the week."""
+        policy = db_helper.policies_collection.find_one(
+            {"type": "hours_of_operation"}, 
+            {"_id": 0}
+        )
+        if policy and "regularHours" in policy:
+            for hours in policy["regularHours"]:
+                if hours.get("dayOfWeek") == day:
+                    return hours
+        return {"message": f"Hours for {day} not found."}
 
 
     current_date = datetime.now().strftime("%Y-%m-%d")
