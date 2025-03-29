@@ -235,7 +235,6 @@ async def entrypoint(ctx: JobContext):
                     return hours
         return {"message": f"Hours for {day} not found."}
 
-
     current_date = datetime.now().strftime("%Y-%m-%d")
 
     agent = multimodal.MultimodalAgent(
@@ -284,7 +283,6 @@ async def entrypoint(ctx: JobContext):
                     If faced with a question or situation outside your capabilities, offer to connect the customer with a human staff member. 
                     Remember to always prioritize customer satisfaction and create a welcoming atmosphere that reflects the quality and character of our restaurant. 
                     Once you have all the details, format them properly and call the appropriate tool.""",
-
             voice="Kore",
             temperature=0.8,
             modalities=["AUDIO"]
