@@ -10,16 +10,24 @@ import {
   RoomAudioRenderer,
   VoiceAssistantControlBar,
   useVoiceAssistant,
+  useTrackTranscription
 } from "@livekit/components-react";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
 import type { ConnectionDetails } from "./api/connection-details/route";
-import { useUser } from '@auth0/nextjs-auth0/client';
+import { TrackReferenceOrPlaceholder } from "@livekit/components-core";
+
+import { TranscriptionSegment, Participant, RoomEvent } from "livekit-client";
+import { useRoomContext } from "@livekit/components-react";
+
+interface EnhancedTranscriptionSegment {
+  segment: TranscriptionSegment;
+  participantIdentity?: string;
+}
 
 export default function Page() {
-  const { user, error: authError, isLoading: authLoading } = useUser();
   const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(
     undefined
   );
@@ -44,47 +52,8 @@ export default function Page() {
     updateConnectionDetails(connectionDetailsData);
   }, []);
 
-  if (authLoading) return <div className="h-full grid content-center bg-[var(--lk-bg)]">Loading authentication...</div>;
-  if (authError) return <div className="h-full grid content-center bg-[var(--lk-bg)]">Authentication Error: {authError.message}</div>;
-  
-  if (!user) {
-    return (
-      <div className="h-full grid content-center place-items-center bg-[var(--lk-bg)]">
-        <div className="flex flex-col items-center gap-4">
-          <h1 className="text-xl font-bold">Culinary Vertex</h1>
-          <p>Please log in to use the voice assistant</p>
-          <a 
-            href="/api/auth/login" 
-            className="px-4 py-2 bg-white text-black rounded-md uppercase"
-          >
-            Login
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <main data-lk-theme="default" className="h-full grid content-center bg-[var(--lk-bg)]">
-      <div className="absolute top-4 right-4 flex items-center gap-3">
-        <div className="text-white">
-          {user.picture && (
-            <img 
-              src={user.picture} 
-              alt={user.name || "User"} 
-              className="w-8 h-8 rounded-full inline mr-2" 
-            />
-          )}
-          {user.name}
-        </div>
-        <a 
-          href="/api/auth/logout" 
-          className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded-md"
-        >
-          Logout
-        </a>
-      </div>
-
       <LiveKitRoom
         token={connectionDetails?.participantToken}
         serverUrl={connectionDetails?.serverUrl}
@@ -106,20 +75,81 @@ export default function Page() {
   );
 }
 
+
+function TranscriptionDisplay() {
+  const room = useRoomContext();
+  const [transcriptions, setTranscriptions] = useState<Record<string, EnhancedTranscriptionSegment>>({});
+
+  useEffect(() => {
+    if (!room) return;
+
+    const handleTranscriptionReceived = (
+      segments: TranscriptionSegment[],
+      participant?: Participant
+    ) => {
+      setTranscriptions((prev) => {
+        const newTranscriptions = { ...prev };
+        for (const segment of segments) {
+          newTranscriptions[segment.id] = {
+            segment,
+            participantIdentity: participant?.identity
+          };
+        }
+        return newTranscriptions;
+      });
+    };
+
+    room.on(RoomEvent.TranscriptionReceived, handleTranscriptionReceived);
+    
+    return () => {
+      room.off(RoomEvent.TranscriptionReceived, handleTranscriptionReceived);
+    };
+  }, [room]);
+
+  // Sort transcriptions by time received
+  const sortedSegments = Object.values(transcriptions)
+    .sort((a, b) => a.segment.firstReceivedTime - b.segment.firstReceivedTime);
+
+  return (
+    <div className="transcription-container max-w-[90vw] w-full mx-auto mt-4 px-4 py-3 bg-black/30 rounded-lg overflow-y-auto max-h-[200px]">
+      {sortedSegments.length > 0 ? (
+        <ul className="space-y-2">
+          {sortedSegments.map(({ segment, participantIdentity }) => {
+            // Determine if this is a user or agent transcription
+            const isAgent = !participantIdentity || participantIdentity === 'agent';
+            const speakerName = isAgent ? 'Culinary Vertex' : 'You';
+            
+            return (
+              <li key={segment.id} className={`text-white ${segment.final ? 'font-normal' : 'italic opacity-70'}`}>
+                <span className={`font-semibold ${isAgent ? 'text-blue-300' : 'text-green-300'}`}>
+                  {speakerName}:
+                </span> {segment.text}
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="text-white/50 text-center italic"></p>
+      )}
+    </div>
+  );
+}
+
 function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => void }) {
   const { state, audioTrack } = useVoiceAssistant();
   useEffect(() => {
     props.onStateChange(state);
   }, [props, state]);
   return (
-    <div className="h-[300px] max-w-[90vw] mx-auto">
+    <div className="flex flex-col items-center h-[300px] max-w-[90vw] mx-auto">
       <BarVisualizer
         state={state}
         barCount={5}
         trackRef={audioTrack}
-        className="agent-visualizer"
+        className="agent-visualizer mb-4"
         options={{ minHeight: 24 }}
       />
+      <TranscriptionDisplay />
     </div>
   );
 }
@@ -173,6 +203,6 @@ function ControlBar(props: { onConnectButtonClicked: () => void; agentState: Age
 function onDeviceFailure(error?: MediaDeviceFailure) {
   console.error(error);
   alert(
-    "Error acquiring camera or microphone permissions. Please make sure you grant the necessary permissions in your browser and reload the tab"
+    "Error acquiring microphone permissions. Please make sure you grant the necessary permissions in your browser and reload the tab"
   );
 }
