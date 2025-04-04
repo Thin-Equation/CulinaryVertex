@@ -1,5 +1,4 @@
 from pymongo import MongoClient
-from bson import ObjectId
 import os
 import certifi
 from dotenv import load_dotenv

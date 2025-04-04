@@ -9,15 +9,13 @@ import {
   LiveKitRoom,
   RoomAudioRenderer,
   VoiceAssistantControlBar,
-  useVoiceAssistant,
-  useTrackTranscription
+  useVoiceAssistant
 } from "@livekit/components-react";
 import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
 import { AnimatePresence, motion } from "framer-motion";
 import { MediaDeviceFailure } from "livekit-client";
 import { useCallback, useEffect, useState } from "react";
 import type { ConnectionDetails } from "./api/connection-details/route";
-import { TrackReferenceOrPlaceholder } from "@livekit/components-core";
 
 import { TranscriptionSegment, Participant, RoomEvent } from "livekit-client";
 import { useRoomContext } from "@livekit/components-react";
