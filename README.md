@@ -55,7 +55,7 @@ CulinaryVertex is a full-stack application designed for the "Gourmet Bistro" res
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/Thin-Equation/CulinaryVertex
     cd CulinaryVertex
     ```
 
