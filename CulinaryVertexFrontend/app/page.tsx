@@ -25,11 +25,26 @@ interface EnhancedTranscriptionSegment {
   participantIdentity?: string;
 }
 
+interface TranscriptionSidebarProps {
+  isOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+interface ControlBarProps {
+  onConnectButtonClicked: () => void;
+  agentState: AgentState;
+  toggleSidebar: () => void;
+  sidebarOpen: boolean;
+}
+
 export default function Page() {
-  const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(
-    undefined
-  );
+  const [connectionDetails, updateConnectionDetails] = useState<ConnectionDetails | undefined>(undefined);
   const [agentState, setAgentState] = useState<AgentState>("disconnected");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarOpen(prev => !prev);
+  }, []);
 
   const onConnectButtonClicked = useCallback(async () => {
     // Generate room connection details, including:
@@ -65,16 +80,21 @@ export default function Page() {
         className="grid grid-rows-[2fr_1fr] items-center"
       >
         <SimpleVoiceAssistant onStateChange={setAgentState} />
-        <ControlBar onConnectButtonClicked={onConnectButtonClicked} agentState={agentState} />
+        <ControlBar 
+          onConnectButtonClicked={onConnectButtonClicked} 
+          agentState={agentState} 
+          toggleSidebar={toggleSidebar}
+          sidebarOpen={sidebarOpen}
+        />
         <RoomAudioRenderer />
         <NoAgentNotification state={agentState} />
+        <TranscriptionSidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       </LiveKitRoom>
     </main>
   );
 }
 
-
-function TranscriptionDisplay() {
+function TranscriptionSidebar({ isOpen, toggleSidebar }: TranscriptionSidebarProps) {
   const room = useRoomContext();
   const [transcriptions, setTranscriptions] = useState<Record<string, EnhancedTranscriptionSegment>>({});
 
@@ -109,26 +129,36 @@ function TranscriptionDisplay() {
     .sort((a, b) => a.segment.firstReceivedTime - b.segment.firstReceivedTime);
 
   return (
-    <div className="transcription-container max-w-[90vw] w-full mx-auto mt-4 px-4 py-3 bg-black/30 rounded-lg overflow-y-auto max-h-[200px]">
-      {sortedSegments.length > 0 ? (
-        <ul className="space-y-2">
-          {sortedSegments.map(({ segment, participantIdentity }) => {
-            // Determine if this is a user or agent transcription
-            const isAgent = !participantIdentity || participantIdentity === 'agent';
-            const speakerName = isAgent ? 'Culinary Vertex' : 'You';
-            
-            return (
-              <li key={segment.id} className={`text-white ${segment.final ? 'font-normal' : 'italic opacity-70'}`}>
-                <span className={`font-semibold ${isAgent ? 'text-blue-300' : 'text-green-300'}`}>
-                  {speakerName}:
-                </span> {segment.text}
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="text-white/50 text-center italic"></p>
-      )}
+    <div className={`transcription-sidebar fixed right-0 top-0 h-full bg-[var(--lk-bg)] border-l border-white/10 w-80 transition-transform duration-300 z-50 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className="flex justify-between items-center p-4 border-b border-white/10">
+        <h3 className="text-white font-semibold">Conversation Transcript</h3>
+        <button onClick={toggleSidebar} className="text-white/70 hover:text-white">
+          <CloseIcon />
+        </button>
+      </div>
+      
+      <div className="p-4 h-[calc(100%-64px)] overflow-y-auto">
+        {sortedSegments.length > 0 ? (
+          <ul className="space-y-4">
+            {sortedSegments.map(({ segment, participantIdentity }) => {
+              const isAgent = !participantIdentity || participantIdentity === 'agent';
+              
+              return (
+                <li key={segment.id} className={`${isAgent ? 'pl-2' : 'pr-2'}`}>
+                  <div className={`p-3 rounded-lg max-w-[90%] ${isAgent ? 'bg-blue-900/30 ml-0 mr-auto' : 'bg-green-900/30 ml-auto mr-0'} ${segment.final ? 'opacity-100' : 'opacity-70'}`}>
+                    <p className={`text-sm font-semibold mb-1 ${isAgent ? 'text-blue-300' : 'text-green-300'}`}>
+                      {isAgent ? 'Culinary Vertex' : 'You'}
+                    </p>
+                    <p className="text-white">{segment.text}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-white/50 text-center italic mt-4">Your conversation will appear here</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -147,12 +177,11 @@ function SimpleVoiceAssistant(props: { onStateChange: (state: AgentState) => voi
         className="agent-visualizer mb-4"
         options={{ minHeight: 24 }}
       />
-      <TranscriptionDisplay />
     </div>
   );
 }
 
-function ControlBar(props: { onConnectButtonClicked: () => void; agentState: AgentState }) {
+function ControlBar({ onConnectButtonClicked, agentState, toggleSidebar, sidebarOpen }: ControlBarProps) {
   /**
    * Use Krisp background noise reduction when available.
    * Note: This is only available on Scale plan, see {@link https://livekit.io/pricing | LiveKit Pricing} for more details.
@@ -160,34 +189,40 @@ function ControlBar(props: { onConnectButtonClicked: () => void; agentState: Age
   const krisp = useKrispNoiseFilter();
   useEffect(() => {
     krisp.setNoiseFilterEnabled(true);
-  }, []);
+  }, [krisp]);
 
   return (
     <div className="relative h-[100px]">
       <AnimatePresence>
-        {props.agentState === "disconnected" && (
+        {agentState === "disconnected" && (
           <motion.button
             initial={{ opacity: 0, top: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, top: "-10px" }}
             transition={{ duration: 1, ease: [0.09, 1.04, 0.245, 1.055] }}
             className="uppercase absolute left-1/2 -translate-x-1/2 px-4 py-2 bg-white text-black rounded-md"
-            onClick={() => props.onConnectButtonClicked()}
+            onClick={() => onConnectButtonClicked()}
           >
             Start a conversation
           </motion.button>
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {props.agentState !== "disconnected" && props.agentState !== "connecting" && (
+        {agentState !== "disconnected" && agentState !== "connecting" && (
           <motion.div
             initial={{ opacity: 0, top: "10px" }}
             animate={{ opacity: 1, top: 0 }}
             exit={{ opacity: 0, top: "-10px" }}
             transition={{ duration: 0.4, ease: [0.09, 1.04, 0.245, 1.055] }}
-            className="flex h-8 absolute left-1/2 -translate-x-1/2  justify-center"
+            className="flex h-8 absolute left-1/2 -translate-x-1/2 justify-center items-center space-x-2"
           >
             <VoiceAssistantControlBar controls={{ leave: false }} />
+            <button 
+              onClick={toggleSidebar}
+              className={`px-2 py-1 text-xs rounded ${sidebarOpen ? 'bg-blue-500 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
+            >
+              {sidebarOpen ? 'Hide Transcript' : 'Show Transcript'}
+            </button>
             <DisconnectButton>
               <CloseIcon />
             </DisconnectButton>
@@ -198,6 +233,7 @@ function ControlBar(props: { onConnectButtonClicked: () => void; agentState: Age
   );
 }
 
+// Define the overlay that appears when there is an issue capturing the microphone
 function onDeviceFailure(error?: MediaDeviceFailure) {
   console.error(error);
   alert(
