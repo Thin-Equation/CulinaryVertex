@@ -493,8 +493,6 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             return {"error": str(e), "message": "Error retrieving order."}
 
-
-
     current_date = datetime.now().strftime("%Y-%m-%d")
     
     agent = multimodal.MultimodalAgent(
@@ -639,7 +637,7 @@ async def entrypoint(ctx: JobContext):
             temperature=0.8,
             modalities=["AUDIO"]
         ),
-        transcription=multimodal.AgentTranscriptionOptions(user_transcription=False, agent_transcription=True),
+        transcription=multimodal.AgentTranscriptionOptions(user_transcription=True, agent_transcription=True),
         fnc_ctx=fnc_ctx
     )
     agent.start(ctx.room)
