@@ -2,6 +2,7 @@ from pymongo import MongoClient
 import os
 import certifi
 from dotenv import load_dotenv
+import json
 
 load_dotenv(dotenv_path=".env")
 
@@ -454,11 +455,15 @@ menu_items = [
     }
 ]
 
+# Get menu items from the MongoDB
+def get_menu_items():
+    return json.dumps(list(mongo_helper.menu_collection.find({}, {"_id": 0})))
+
 if __name__ == "__main__":
     MONGO_URI = os.getenv("MONGO_DB_URL")
     mongo_helper = MongoDBHelper(MONGO_URI)
-    
-    inserted_ids = mongo_helper.insert_menu_items(menu_items)
+
+    print(get_menu_items())
 
     # Close connection when done
     mongo_helper.close_connection()

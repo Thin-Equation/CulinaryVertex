@@ -214,8 +214,17 @@ documents = [
     private_dining
 ]
 
-for doc in documents:
-    collection.insert_one(doc)
-    print(f"Inserted {doc['type']} document")
+# get all policies
+def get_all_policies():
+    policies = collection.find()
+    return list(policies)
 
-print("All documents inserted successfully!")
+print("Policies in the database:")
+policies = get_all_policies()
+for policy in policies:
+    print(policy)
+# for doc in documents:
+#     collection.insert_one(doc)
+#     print(f"Inserted {doc['type']} document")
+
+# print("All documents inserted successfully!")

@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, WorkerType, cli, multimodal, llm
 from livekit.plugins import google
-from datetime import datetime, timedelta
+from datetime import datetime 
 import certifi
 from pymongo import MongoClient
 from typing import Optional, Annotated
@@ -33,30 +33,30 @@ class MongoDBHelper:
 async def entrypoint(ctx: JobContext):
     logger.info("starting culinary vertex backend")
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-    
+
     uri = os.getenv("MONGO_DB_URL")
     db_helper = MongoDBHelper(uri)
     fnc_ctx = llm.FunctionContext()
-    
+
     @fnc_ctx.ai_callable()
     async def get_menu_items():
         """Retrieve all items from the restaurant menu."""
         return list(db_helper.menu_collection.find({}, {"_id": 0}))
-    
+
     @fnc_ctx.ai_callable()
     async def get_menu_by_category(
         category: Annotated[str, llm.TypeInfo(description="Category of menu items to retrieve")]
     ):
         """Retrieve menu items filtered by category."""
         return list(db_helper.menu_collection.find({"category": category}, {"_id": 0}))
-    
+
     @fnc_ctx.ai_callable()
     async def get_menu_item_by_name(
         name: Annotated[str, llm.TypeInfo(description="Name of the menu item to find")]
     ):
         """Find a specific menu item by its name."""
         return db_helper.menu_collection.find_one({"name": name}, {"_id": 0})
-    
+
     # Register reservation-related functions
     @fnc_ctx.ai_callable()
     async def create_reservation(
@@ -76,10 +76,10 @@ async def entrypoint(ctx: JobContext):
             "status": "confirmed",
             "created_at": datetime.now()
         }
-        
+
         result = db_helper.reservations_collection.insert_one(reservation)
         reservation_id = str(result.inserted_id)
-        
+
         return {
             "reservation_id": reservation_id,
             "message": f"Reservation confirmed for {customer_name} on {date} at {time} for {party_size} people."
@@ -89,7 +89,7 @@ async def entrypoint(ctx: JobContext):
     async def modify_reservation(
         reservation_id: Annotated[str, llm.TypeInfo(description="ID of the reservation to modify")],
         customer_name: Annotated[Optional[str], llm.TypeInfo(description="Updated full name of the customer")] = None,
-        contact_number: Annotated[Optional[str], llm.TypeInfo(description="Updated customer's phone number in XXX-XXX-XXXX format")] = None,
+        contact_number: Annotated[Optional[str], llm.TypeInfo(description="Updated customer's phone number")] = None,
         date: Annotated[Optional[str], llm.TypeInfo(description="Updated date in YYYY-MM-DD format")] = None,
         time: Annotated[Optional[str], llm.TypeInfo(description="Updated time in HH:MM format")] = None,
         party_size: Annotated[Optional[int], llm.TypeInfo(description="Updated number of people in the party")] = None
@@ -107,23 +107,23 @@ async def entrypoint(ctx: JobContext):
             update_fields["time"] = time
         if party_size is not None:
             update_fields["party_size"] = party_size
-        
+
         # Add updated_at timestamp
         update_fields["updated_at"] = datetime.now()
-        
+
         # Update the reservation in the database
         result = db_helper.reservations_collection.update_one(
             {"_id": ObjectId(reservation_id)},
             {"$set": update_fields}
         )
-        
+
         if result.modified_count > 0:
             # Get the updated reservation to return it
             updated_reservation = db_helper.reservations_collection.find_one(
                 {"_id": ObjectId(reservation_id)},
                 {"_id": 0}  # Exclude _id field from the result
             )
-            
+
             return {
                 "success": True,
                 "message": f"Reservation updated successfully for {updated_reservation['customer_name']} on {updated_reservation['date']} at {updated_reservation['time']}.",
@@ -134,7 +134,7 @@ async def entrypoint(ctx: JobContext):
                 "success": False,
                 "message": "Reservation not found or no changes were made."
             }
-    
+
     @fnc_ctx.ai_callable()
     async def get_reservation_by_id(
         reservation_id: Annotated[str, llm.TypeInfo(description="ID of the reservation to retrieve")]
@@ -144,7 +144,7 @@ async def entrypoint(ctx: JobContext):
             {"_id": ObjectId(reservation_id)},
             {"_id": 0}  # Exclude _id field from the result
         )
-        
+
         if reservation:
             return reservation
         else:
@@ -164,16 +164,16 @@ async def entrypoint(ctx: JobContext):
             query["date"] = date
         if contact_number:
             query["contact_number"] = contact_number
-        
+
         if not query:
             return {"message": "Please provide at least one search parameter."}
-        
+
         reservations = list(db_helper.reservations_collection.find(query, {"_id": 1, "customer_name": 1, "date": 1, "time": 1, "party_size": 1}))
-        
+
         # Convert ObjectId to string for JSON serialization
         for reservation in reservations:
             reservation["_id"] = str(reservation["_id"])
-        
+
         if reservations:
             return reservations
         else:
@@ -221,277 +221,6 @@ async def entrypoint(ctx: JobContext):
                 if hours.get("dayOfWeek") == day:
                     return hours
         return {"message": f"Hours for {day} not found."}
-
-    # Register Order related functions
-    @fnc_ctx.ai_callable()
-    async def create_order(
-        customer_name: Annotated[str, llm.TypeInfo(description="Name of the customer placing the order")],
-        items: Annotated[str, llm.TypeInfo(description="List of items in the order with item_name, quantity, and special_instructions")] = [],
-        special_instructions: Annotated[Optional[str], llm.TypeInfo(description="Special instructions for the entire order")] = None
-    ):
-        """Create a new order with the specified items."""
-        # Calculate total price by looking up items in the menu
-        total_price = 0.0
-        order_items = []
-        
-        for item in items:
-            menu_item = db_helper.menu_collection.find_one({"name": item["item_name"]})
-            if menu_item:
-                item_price = menu_item.get("price", 0.0) * item.get("quantity", 1)
-                total_price += item_price
-                order_items.append({
-                    "item_name": item["item_name"],
-                    "quantity": item.get("quantity", 1),
-                    "price": menu_item.get("price", 0.0),
-                    "special_instructions": item.get("special_instructions", "")
-                })
-        
-        # Create order document
-        order = {
-            "customer_name": customer_name,
-            "items": order_items,
-            "total_price": total_price,
-            "special_instructions": special_instructions,
-            "status": "pending",
-            "created_at": datetime.now(),
-            "updated_at": datetime.now()
-        }
-        
-        result = db_helper.orders_collection.insert_one(order)
-        order_id = str(result.inserted_id)
-        
-        return {
-            "order_id": order_id,
-            "message": f"Order created successfully for {customer_name}.",
-            "total_price": total_price,
-            "items_count": len(order_items),
-            "status": "pending"
-        }
-    
-    @fnc_ctx.ai_callable()
-    async def search_orders(
-        customer_name: Annotated[Optional[str], llm.TypeInfo(description="Customer name to search for")] = None,
-        status: Annotated[Optional[str], llm.TypeInfo(description="Status of orders to search for")] = None,
-        date_from: Annotated[Optional[str], llm.TypeInfo(description="Start date (YYYY-MM-DD)")] = None,
-        date_to: Annotated[Optional[str], llm.TypeInfo(description="End date (YYYY-MM-DD)")] = None
-    ):
-        """Search for orders based on various criteria."""
-        query = {}
-        
-        if customer_name:
-            query["customer_name"] = {"$regex": customer_name, "$options": "i"}
-        if status:
-            query["status"] = status
-        
-        # Handle date range if provided
-        if date_from or date_to:
-            date_query = {}
-            if date_from:
-                date_query["$gte"] = datetime.strptime(date_from, "%Y-%m-%d")
-            if date_to:
-                date_query["$lte"] = datetime.strptime(date_to, "%Y-%m-%D") + timedelta(days=1)
-            
-            if date_query:
-                query["created_at"] = date_query
-        
-        try:
-            orders = list(db_helper.orders_collection.find(query))
-            
-            # Convert ObjectId to string for JSON serialization
-            for order in orders:
-                order["_id"] = str(order["_id"])
-            
-            if orders:
-                return orders
-            else:
-                return {"message": "No orders found matching the search criteria."}
-        except Exception as e:
-            return {"error": str(e), "message": "Error searching orders."}
-
-    @fnc_ctx.ai_callable()
-    async def delete_order(
-        order_id: Annotated[str, llm.TypeInfo(description="ID of the order to delete")]
-    ):
-        """Delete an order from the database."""
-        try:
-            # Instead of deleting, we'll mark it as cancelled for record-keeping
-            result = db_helper.orders_collection.update_one(
-                {"_id": ObjectId(order_id)},
-                {
-                    "$set": {
-                        "status": "cancelled",
-                        "updated_at": datetime.now()
-                    }
-                }
-            )
-            
-            if result.modified_count > 0:
-                return {
-                    "success": True,
-                    "message": "Order has been cancelled successfully."
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Order not found or already cancelled."
-                }
-        except Exception as e:
-            return {"error": str(e), "message": "Error cancelling order."}
-
-    @fnc_ctx.ai_callable()
-    async def update_order_status(
-        order_id: Annotated[str, llm.TypeInfo(description="ID of the order to update")],
-        status: Annotated[str, llm.TypeInfo(description="New status for the order (pending, preparing, ready, served, completed, cancelled)")]
-    ):
-        """Update the status of an existing order."""
-        valid_statuses = ["pending", "preparing", "ready", "served", "completed", "cancelled"]
-        
-        if status not in valid_statuses:
-            return {
-                "success": False,
-                "message": f"Invalid status. Status must be one of: {', '.join(valid_statuses)}"
-            }
-        
-        try:
-            result = db_helper.orders_collection.update_one(
-                {"_id": ObjectId(order_id)},
-                {
-                    "$set": {
-                        "status": status,
-                        "updated_at": datetime.now()
-                    }
-                }
-            )
-            
-            if result.modified_count > 0:
-                return {
-                    "success": True,
-                    "message": f"Order status updated to '{status}' successfully."
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Order not found or status unchanged."
-                }
-        except Exception as e:
-            return {"error": str(e), "message": "Error updating order status."}
-
-    @fnc_ctx.ai_callable()
-    async def modify_order(
-        order_id: Annotated[str, llm.TypeInfo(description="ID of the order to modify")],
-        add_items: Annotated[str, llm.TypeInfo(description="List of items to add to the order")] = None,
-        remove_items: Annotated[str, llm.TypeInfo(description="List of items to remove from the order")] = None,
-        update_items: Annotated[str, llm.TypeInfo(description="List of items to update quantities")] = None,
-        special_instructions: Annotated[Optional[str], llm.TypeInfo(description="Updated special instructions")] = None,
-        status: Annotated[Optional[str], llm.TypeInfo(description="New status for the order")] = None
-    ):
-        """Modify an existing order by adding, removing, or updating items."""
-        try:
-            # Get the current order
-            current_order = db_helper.orders_collection.find_one(
-                {"_id": ObjectId(order_id)}
-            )
-            
-            if not current_order:
-                return {"success": False, "message": "Order not found."}
-            
-            # Check if order can be modified
-            if current_order.get("status") in ["completed", "cancelled"]:
-                return {
-                    "success": False,
-                    "message": f"Cannot modify an order with status '{current_order.get('status')}'."
-                }
-            
-            # Make a copy of the current items
-            updated_items = current_order.get("items", [])
-            
-            # Process items to add
-            if add_items:
-                for new_item in add_items:
-                    menu_item = db_helper.menu_collection.find_one({"name": new_item["item_name"]})
-                    if menu_item:
-                        # Check if item already exists in order
-                        existing_item = next((item for item in updated_items if item["item_name"] == new_item["item_name"]), None)
-                        
-                        if existing_item:
-                            # Update quantity of existing item
-                            existing_item["quantity"] += new_item.get("quantity", 1)
-                        else:
-                            # Add new item to order
-                            updated_items.append({
-                                "item_name": new_item["item_name"],
-                                "quantity": new_item.get("quantity", 1),
-                                "price": menu_item.get("price", 0.0),
-                                "special_instructions": new_item.get("special_instructions", "")
-                            })
-            
-            # Process items to remove
-            if remove_items:
-                for remove_item in remove_items:
-                    for existing_item in updated_items[:]:
-                        if existing_item["item_name"] == remove_item["item_name"]:
-                            if remove_item.get("quantity", 1) >= existing_item["quantity"]:
-                                # Remove item completely
-                                updated_items.remove(existing_item)
-                            else:
-                                # Reduce quantity
-                                existing_item["quantity"] -= remove_item.get("quantity", 1)
-                            break
-            
-            # Calculate new total price
-            total_price = sum(item["price"] * item["quantity"] for item in updated_items)
-            
-            # Prepare update document
-            update_doc = {
-                "items": updated_items,
-                "total_price": total_price,
-                "updated_at": datetime.now()
-            }
-            
-            if special_instructions is not None:
-                update_doc["special_instructions"] = special_instructions
-                
-            if status is not None:
-                update_doc["status"] = status
-            
-            # Update order in database
-            result = db_helper.orders_collection.update_one(
-                {"_id": ObjectId(order_id)},
-                {"$set": update_doc}
-            )
-            
-            if result.modified_count > 0:
-                return {
-                    "success": True,
-                    "message": "Order modified successfully.",
-                    "total_price": total_price,
-                    "items_count": len(updated_items)
-                }
-            else:
-                return {
-                    "success": False,
-                    "message": "Order not modified. No changes detected."
-                }
-        except Exception as e:
-            return {"error": str(e), "message": "Error modifying order."}
-
-    @fnc_ctx.ai_callable()
-    async def get_order_by_id(
-        order_id: Annotated[str, llm.TypeInfo(description="ID of the order to retrieve")]
-    ):
-        """Retrieve a specific order by its ID."""
-        try:
-            order = db_helper.orders_collection.find_one(
-                {"_id": ObjectId(order_id)}
-            )
-            
-            if order:
-                order["_id"] = str(order["_id"])
-                return order
-            else:
-                return {"message": "Order not found."}
-        except Exception as e:
-            return {"error": str(e), "message": "Error retrieving order."}
 
     current_date = datetime.now().strftime("%Y-%m-%d")
     
