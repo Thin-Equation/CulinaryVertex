@@ -485,52 +485,19 @@ class Reservation(BaseAgent):
         userdata.reservation_date = date
         return f"The reservation date is updated to {date}"
 
-    # @function_tool()
-    # async def confirm_reservation(self, context: RunContext_T) -> str:
-    #     """Called when the user confirms the reservation."""
-    #     userdata = context.userdata
-    #     if not userdata.customer_name or not userdata.customer_phone:
-    #         return "Please provide your name and phone number first."
-
-    #     if not userdata.reservation_date:
-    #         return "Please provide a reservation date first."
-
-    #     if not userdata.reservation_time:
-    #         return "Please provide reservation time first."
-        
-    #     if not userdata.party_size:
-    #         return "Please provide the number of people in your party first."
-        
-    #     # Save to MongoDB
-    #     reservation_data = {
-    #         "customer_name": userdata.customer_name,
-    #         "customer_phone": userdata.customer_phone,
-    #         "reservation_date": parser.parse(userdata.reservation_date),
-    #         "reservation_time": userdata.reservation_time,
-    #         "party_size": userdata.party_size,
-    #         "timestamp": datetime.now()
-    #     }
-        
-    #     result = reservations_collection.insert_one(reservation_data)
-        
-    #     # Combine the confirmation message with the transfer
-    #     confirmation_message = f"Thank you, {userdata.customer_name}! Your reservation has been confirmed and saved. Your reservation number is: {result.inserted_id}."
-        
-    #     # Return the combined message
-    #     return f"{confirmation_message}"
-
     @function_tool()
-    async def confirm_reservation(self, context: RunContext_T) -> Agent:
+    async def confirm_reservation(self, context: RunContext_T) -> str:
         """Called when the user confirms the reservation."""
         userdata = context.userdata
-        
-        # Validate required information
         if not userdata.customer_name or not userdata.customer_phone:
             return "Please provide your name and phone number first."
+
         if not userdata.reservation_date:
             return "Please provide a reservation date first."
+
         if not userdata.reservation_time:
             return "Please provide reservation time first."
+        
         if not userdata.party_size:
             return "Please provide the number of people in your party first."
         
@@ -546,16 +513,49 @@ class Reservation(BaseAgent):
         
         result = reservations_collection.insert_one(reservation_data)
         
-        # Send confirmation message to user
-        confirmation_message = f"Thank you, {userdata.customer_name}! Your reservation has been confirmed and saved. Your reservation number is: {result.inserted_id}. I'll now transfer you back to Shimmer who can assist with any other needs."
+        # Combine the confirmation message with the transfer
+        confirmation_message = f"Thank you, {userdata.customer_name}! Your reservation has been confirmed and saved. Your reservation number is: {result.inserted_id}."
         
-        # Use chat context to add the confirmation message
-        chat_ctx = self.chat_ctx.copy()
-        chat_ctx.add_message(role="assistant", content=confirmation_message)
-        await self.update_chat_ctx(chat_ctx)
+        # Return the combined message
+        return f"{confirmation_message}"
+
+    # @function_tool()
+    # async def confirm_reservation(self, context: RunContext_T) -> Agent:
+    #     """Called when the user confirms the reservation."""
+    #     userdata = context.userdata
         
-        # Transfer to greeter
-        return await self._transfer_to_agent("greeter", context)
+    #     # Validate required information
+    #     if not userdata.customer_name or not userdata.customer_phone:
+    #         return "Please provide your name and phone number first."
+    #     if not userdata.reservation_date:
+    #         return "Please provide a reservation date first."
+    #     if not userdata.reservation_time:
+    #         return "Please provide reservation time first."
+    #     if not userdata.party_size:
+    #         return "Please provide the number of people in your party first."
+        
+    #     # Save to MongoDB
+    #     reservation_data = {
+    #         "customer_name": userdata.customer_name,
+    #         "customer_phone": userdata.customer_phone,
+    #         "reservation_date": parser.parse(userdata.reservation_date),
+    #         "reservation_time": userdata.reservation_time,
+    #         "party_size": userdata.party_size,
+    #         "timestamp": datetime.now()
+    #     }
+        
+    #     result = reservations_collection.insert_one(reservation_data)
+        
+    #     # Send confirmation message to user
+    #     confirmation_message = f"Thank you, {userdata.customer_name}! Your reservation has been confirmed and saved. Your reservation number is: {result.inserted_id}. I'll now transfer you back to Shimmer who can assist with any other needs."
+        
+    #     # Use chat context to add the confirmation message
+    #     chat_ctx = self.chat_ctx.copy()
+    #     chat_ctx.add_message(role="assistant", content=confirmation_message)
+    #     await self.update_chat_ctx(chat_ctx)
+        
+    #     # Transfer to greeter
+    #     return await self._transfer_to_agent("greeter", context)
 
 
     @function_tool()
@@ -711,41 +711,17 @@ class Ordering(BaseAgent):
         
         return f"Your order has been updated to: {', '.join(items)}. The total price is ${total_price:.2f}"
 
-    # @function_tool()
-    # async def confirm_order(
-    #     self,
-    #     context: RunContext_T,
-    # ) -> str:
-    #     """Called when the user confirms their order."""
-    #     userdata = context.userdata
-        
-    #     if not userdata.order:
-    #         return "No order has been placed yet. Please select items from our menu first."
-            
-    #     if not userdata.customer_name or not userdata.customer_phone:
-    #         return "Please provide your name and phone number to complete the order."
-        
-    #     # Save order to MongoDB
-    #     order_data = {
-    #         "customer_name": userdata.customer_name,
-    #         "customer_phone": userdata.customer_phone,
-    #         "order_items": userdata.order,
-    #         "total_expense": userdata.expense,
-    #         "timestamp": datetime.now(),
-    #     }
-        
-    #     result = orders_collection.insert_one(order_data)
-        
-    #     return f"Thank you, {userdata.customer_name}! Your order has been confirmed and saved. Your order number is: {result.inserted_id}. We'll call you at {userdata.customer_phone} when it's ready for pickup."
-    
     @function_tool()
-    async def confirm_order(self, context: RunContext_T) -> Agent:
+    async def confirm_order(
+        self,
+        context: RunContext_T,
+    ) -> str:
         """Called when the user confirms their order."""
         userdata = context.userdata
         
-        # Validate required information
         if not userdata.order:
             return "No order has been placed yet. Please select items from our menu first."
+            
         if not userdata.customer_name or not userdata.customer_phone:
             return "Please provide your name and phone number to complete the order."
         
@@ -760,16 +736,40 @@ class Ordering(BaseAgent):
         
         result = orders_collection.insert_one(order_data)
         
-        # Send confirmation message to user
-        confirmation_message = f"Thank you, {userdata.customer_name}! Your order has been confirmed and saved. Your order number is: {result.inserted_id}. We'll call you at {userdata.customer_phone} when it's ready for pickup. I'll now transfer you back to Shimmer who can assist with any other needs."
+        return f"Thank you, {userdata.customer_name}! Your order has been confirmed and saved. Your order number is: {result.inserted_id}. We'll call you at {userdata.customer_phone} when it's ready for pickup."
+    
+    # @function_tool()
+    # async def confirm_order(self, context: RunContext_T) -> Agent:
+    #     """Called when the user confirms their order."""
+    #     userdata = context.userdata
         
-        # Use chat context to add the confirmation message
-        chat_ctx = self.chat_ctx.copy()
-        chat_ctx.add_message(role="assistant", content=confirmation_message)
-        await self.update_chat_ctx(chat_ctx)
+    #     # Validate required information
+    #     if not userdata.order:
+    #         return "No order has been placed yet. Please select items from our menu first."
+    #     if not userdata.customer_name or not userdata.customer_phone:
+    #         return "Please provide your name and phone number to complete the order."
         
-        # Transfer to greeter
-        return await self._transfer_to_agent("greeter", context)
+    #     # Save order to MongoDB
+    #     order_data = {
+    #         "customer_name": userdata.customer_name,
+    #         "customer_phone": userdata.customer_phone,
+    #         "order_items": userdata.order,
+    #         "total_expense": userdata.expense,
+    #         "timestamp": datetime.now(),
+    #     }
+        
+    #     result = orders_collection.insert_one(order_data)
+        
+    #     # Send confirmation message to user
+    #     confirmation_message = f"Thank you, {userdata.customer_name}! Your order has been confirmed and saved. Your order number is: {result.inserted_id}. We'll call you at {userdata.customer_phone} when it's ready for pickup. I'll now transfer you back to Shimmer who can assist with any other needs."
+        
+    #     # Use chat context to add the confirmation message
+    #     chat_ctx = self.chat_ctx.copy()
+    #     chat_ctx.add_message(role="assistant", content=confirmation_message)
+    #     await self.update_chat_ctx(chat_ctx)
+        
+    #     # Transfer to greeter
+    #     return await self._transfer_to_agent("greeter", context)
 
     @function_tool()
     async def to_reservation(self, context: RunContext_T) -> Agent:
