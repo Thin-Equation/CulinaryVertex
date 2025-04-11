@@ -372,8 +372,7 @@ class Greeter(BaseAgent):
                 "- Politely decline to answer questions about topics unrelated to restaurant services\n"
                 "- For off-topic questions, redirect conversation back to restaurant services"
             ),
-            llm=openai.realtime.RealtimeModel(model="gpt-4o-mini-realtime-preview",
-                                              voice="shimmer"),
+            llm=openai.realtime.RealtimeModel(voice="shimmer"),
         )
         self.menu = menu
         self.policies = policies
@@ -443,8 +442,7 @@ class Reservation(BaseAgent):
                 "- Always thank customers for their patience when processing requests"
             ),
             tools=[update_name, update_phone, to_greeter],
-            llm=openai.realtime.RealtimeModel(model="gpt-4o-mini-realtime-preview",
-                                              voice="alloy"),
+            llm=openai.realtime.RealtimeModel(voice="alloy"),
 
         )
         self.policies = policies
@@ -626,8 +624,7 @@ class Ordering(BaseAgent):
         super().__init__(
             instructions=instructions,
             tools=[update_name, update_phone, to_greeter],
-            llm=openai.realtime.RealtimeModel(model="gpt-4o-mini-realtime-preview",
-                                              voice="sage"),
+            llm=openai.realtime.RealtimeModel(voice="sage"),
         )
     
     def _parse_menu(self, menu_data):
@@ -791,8 +788,7 @@ async def entrypoint(ctx: JobContext):
     )
     agent = AgentSession[UserData](
         userdata=userdata,
-        llm=openai.realtime.RealtimeModel(model="gpt-4o-mini-realtime-preview",
-                                          voice="shimmer"),
+        llm=openai.realtime.RealtimeModel(voice="shimmer"),
         max_tool_steps=5,
     )
 
