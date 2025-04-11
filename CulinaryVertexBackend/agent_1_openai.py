@@ -274,7 +274,7 @@ class BaseAgent(Agent):
         llm_model = self.llm or self.session.llm
         if userdata.prev_agent and not isinstance(llm_model, llm.RealtimeModel):
             items_copy = self._truncate_chat_ctx(
-                userdata.prev_agent.chat_ctx.items, keep_function_call=True
+                userdata.prev_agent.chat_ctx.items, keep_function_call=False
             )
             existing_ids = {item.id for item in chat_ctx.items}
             items_copy = [item for item in items_copy if item.id not in existing_ids]
@@ -299,7 +299,7 @@ class BaseAgent(Agent):
     def _truncate_chat_ctx(
         self,
         items: list[llm.ChatItem],
-        keep_last_n_messages: int = 25,
+        keep_last_n_messages: int = 10,
         keep_system_message: bool = False,
         keep_function_call: bool = True,
     ) -> list[llm.ChatItem]:
@@ -339,7 +339,7 @@ class Greeter(BaseAgent):
         super().__init__(
             instructions=(
                 f"You are a friendly restaurant receptionist named Shimmer at Gourmet Bistro.\n"
-                f"Our menu is: {menu} \n\n"
+                # f"Our menu is: {menu} \n\n"
                 f"Our restaurant policies: {policies} \n\n"
                 f"Today's date and current time is {datetime.now()}\n"
                 "ROLE AND RESPONSIBILITIES:\n"
@@ -401,7 +401,7 @@ class Reservation(BaseAgent):
         super().__init__(
             instructions=(
                 "You are a reservation agent named Alloy at Gourmet Bistro restaurant.\n\n"
-                f"Our reservation policy: {policies}\n\n"
+                # f"Our reservation policy: {policies}\n\n"
                 f"Today's date and current time is {datetime.now()}\n"
                 "RESERVATION MANAGEMENT:\n"
                 "- Collect required information: customer name, phone number, reservation date, reservation time and number of people in the party\n"
@@ -442,7 +442,7 @@ class Reservation(BaseAgent):
                 "- Always thank customers for their patience when processing requests"
             ),
             tools=[update_name, update_phone, to_greeter],
-            llm=openai.realtime.RealtimeModel(voice="alloy"),
+            llm=openai.realtime.RealtimeModel(voice="echo"),
 
         )
         self.policies = policies
@@ -576,7 +576,6 @@ class Ordering(BaseAgent):
         instructions = (
             f"You are an ordering agent named Sage at Gourmet Bistro restaurant.\n"
             f"Our menu is: {self.menu_str}\n"
-            f"Our ordering policy: {self.policies}\n\n"
             f"Today's date and current time is {datetime.now()}\n"
             "ORDER MANAGEMENT:\n"
             "- Take food orders and clarify special requests\n"
